@@ -626,14 +626,15 @@ function TripDetail({ trip, onBack, onUpdate }) {
 const BLANK_ACT = { title:"", priority:"should", duration:60, location:"" };
 
 function ItineraryTab({ trip, onUpdate }) {
-  const [activeDay,    setActiveDay]    = useState(0);
-  const [showAddDay,   setShowAddDay]   = useState(false);
-  const [editAct,      setEditAct]      = useState(null);
-  const [actionSheet,  setActionSheet]  = useState(null);
-  const [confirmDelete,setConfirmDelete]= useState(null);
-  const [moveModal,    setMoveModal]    = useState(null);
-  const [snack,        setSnack]        = useState(null);
-  const [newDay,       setNewDay]       = useState({date:"",label:"",parts:["morning"]});
+  const [activeDay,      setActiveDay]      = useState(0);
+  const [showAddDay,     setShowAddDay]     = useState(false);
+  const [editAct,        setEditAct]        = useState(null);
+  const [actionSheet,    setActionSheet]    = useState(null);
+  const [confirmDelete,  setConfirmDelete]  = useState(null);
+  const [confirmDelDay,  setConfirmDelDay]  = useState(null);
+  const [moveModal,      setMoveModal]      = useState(null);
+  const [snack,          setSnack]          = useState(null);
+  const [newDay,         setNewDay]         = useState({date:"",label:"",parts:["morning"]});
   const dayRefs = useRef({});
 
   const days = trip.days||[];
@@ -661,8 +662,11 @@ function ItineraryTab({ trip, onUpdate }) {
     setEditAct(null);
   }
 
+  function deleteDay(dayId) {
+    updateDays(days.filter(d=>d.id!==dayId));
+  }
+
   function deleteAct(dayId,part,actId) {
-    // Save for undo
     const saved = days;
     updateDays(days.map(d=>d.id!==dayId?d:{...d,slots:(d.slots||[]).map(s=>s.part!==part?s:{...s,activities:s.activities.filter(a=>a.id!==actId)})}));
     setSnack({ msg:"Activity deleted", undo:()=>{ updateDays(saved); setSnack(null); } });
@@ -748,6 +752,9 @@ function ItineraryTab({ trip, onUpdate }) {
                 <p style={{ fontSize:16, fontWeight:500 }}>{day.label}</p>
                 <p style={{ fontSize:13, color:"#6B5E52" }}>{fmtDateL(day.date)} · {done}/{allActs.length} done</p>
               </div>
+              <Ripple onClick={()=>setConfirmDelDay(day)} style={{ borderRadius:"50%", width:40, height:40 }}>
+                <button className="icon-btn" style={{ pointerEvents:"none", width:40, height:40, color:"#B3261E" }}><Icon name="trash" size={18}/></button>
+              </Ripple>
             </div>
 
             {(day.slots||[]).map(slot=>{
@@ -774,7 +781,7 @@ function ItineraryTab({ trip, onUpdate }) {
                             <div style={{ marginTop:5, display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                               <span className="pri-chip" style={{ background:pri.bg, color:pri.color, fontSize:11 }}>{pri.label}</span>
                               {act.duration>0&&<span style={{ fontSize:12, color:"#6B5E52", display:"flex", alignItems:"center", gap:3 }}><Icon name="clock" size={13}/>{fmtDur(act.duration)}</span>}
-                              {act.location&&<span style={{ fontSize:12, color:"#6B5E52", display:"flex", alignItems:"center", gap:3 }}><Icon name="pin" size={13}/><span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:140 }}>{act.location}</span></span>}
+                              {act.location&&<a href={`https://maps.google.com/?q=${encodeURIComponent(act.location)}`} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{ fontSize:12, color:"#6D5B45", display:"flex", alignItems:"center", gap:3, textDecoration:"none" }}><Icon name="pin" size={13}/><span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:140 }}>{act.location}</span></a>}
                             </div>
                           </div>
                           {/* Single ⋯ — 48×48 tap zone */}
@@ -818,7 +825,26 @@ function ItineraryTab({ trip, onUpdate }) {
         </div>
       )}
 
-      {/* ── Confirm delete sheet ── */}
+      {/* ── Confirm delete step sheet ── */}
+      {confirmDelDay&&(
+        <div className="sheet-backdrop" onClick={()=>setConfirmDelDay(null)}>
+          <div className="sheet" onClick={e=>e.stopPropagation()} style={{ padding:"0 0 max(28px,env(safe-area-inset-bottom,28px))" }}>
+            <div className="sheet-handle"/>
+            <p className="sheet-title">Delete step?</p>
+            <p style={{ padding:"0 24px 20px", fontSize:14, color:"#6B5E52" }}>"{confirmDelDay.label}" and all its activities will be permanently removed.</p>
+            <div style={{ padding:"0 24px", display:"flex", gap:12 }}>
+              <Ripple onClick={()=>setConfirmDelDay(null)} style={{ flex:1, borderRadius:50 }}>
+                <div style={{ height:48, display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid #CAC4D0", borderRadius:50, color:"#49454F", fontSize:15, fontWeight:500 }}>Cancel</div>
+              </Ripple>
+              <Ripple onClick={()=>{deleteDay(confirmDelDay.id);setConfirmDelDay(null);}} style={{ flex:1, borderRadius:50 }}>
+                <div style={{ height:48, display:"flex", alignItems:"center", justifyContent:"center", background:"#B3261E", borderRadius:50, color:"#FFF8F4", fontSize:15, fontWeight:500 }}>Delete</div>
+              </Ripple>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm delete activity sheet ── */}
       {confirmDelete&&(
         <div className="sheet-backdrop" onClick={()=>setConfirmDelete(null)}>
           <div className="sheet" onClick={e=>e.stopPropagation()} style={{ padding:"0 0 max(28px,env(safe-area-inset-bottom,28px))" }}>
