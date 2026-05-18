@@ -155,24 +155,31 @@ const G = () => (
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Google+Sans:wght@400;500;700&display=swap');
 
     *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
-    html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+    html { -webkit-text-size-adjust:100%; text-size-adjust:100%; height:100%; }
 
-    body, #root {
+    body {
       font-family: 'Google Sans', Roboto, 'Noto Sans', sans-serif;
       background: #FFFBF7;
       color: #1C1B1F;
-      min-height: 100dvh;
+      height: 100%;
+      overflow: hidden;
       overscroll-behavior: none;
+    }
+
+    #root {
+      height: 100%;
+      overflow: hidden;
     }
 
     .app-shell {
       max-width: 430px;
       margin: 0 auto;
-      min-height: 100dvh;
+      height: 100%;
       background: #FFFBF7;
       display: flex;
       flex-direction: column;
       position: relative;
+      overflow: hidden;
     }
 
     .serif { font-family: 'Cormorant Garamond', serif; }
