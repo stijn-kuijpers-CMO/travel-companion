@@ -422,11 +422,17 @@ const G = () => (
 );
 
 // ─── HOME SCREEN ─────────────────────────────────────────────────────────────
-function HomeScreen({ data, onSelectTrip, onAddTrip }) {
+function HomeScreen({ data, onSelectTrip, onAddTrip, onDeleteTrip, onRestoreTrips }) {
   const [query,        setQuery]        = useState("");
   const [showPast,     setShowPast]     = useState(false);
   const [snack,        setSnack]        = useState(null);
   const fabRef = useRef();
+
+  function handleDeleteTrip(id) {
+    const savedTrips = [...data.trips];
+    onDeleteTrip(id);
+    setSnack({ msg:"Trip deleted", undo:()=>{ onRestoreTrips(savedTrips); setSnack(null); } });
+  }
 
   const upcoming = data.trips.filter(t => getStatus(t.startDate, t.endDate) !== "past");
   const past     = data.trips.filter(t => getStatus(t.startDate, t.endDate) === "past");
@@ -477,7 +483,7 @@ function HomeScreen({ data, onSelectTrip, onAddTrip }) {
           <>
             <span className="section-label">Upcoming & Active</span>
             <div style={{ padding:"0 20px", display:"flex", flexDirection:"column", gap:12 }}>
-              {filteredUpcoming.map(t=><TripCard key={t.id} trip={t} onClick={()=>onSelectTrip(t.id)}/>)}
+              {filteredUpcoming.map(t=><TripCard key={t.id} trip={t} onClick={()=>onSelectTrip(t.id)} onDelete={()=>handleDeleteTrip(t.id)}/>)}
             </div>
           </>
         )}
@@ -495,7 +501,7 @@ function HomeScreen({ data, onSelectTrip, onAddTrip }) {
             </Ripple>
             {showPast && (
               <div style={{ padding:"0 20px", display:"flex", flexDirection:"column", gap:12, paddingBottom:12 }}>
-                {filteredPast.map(t=><TripCard key={t.id} trip={t} onClick={()=>onSelectTrip(t.id)}/>)}
+                {filteredPast.map(t=><TripCard key={t.id} trip={t} onClick={()=>onSelectTrip(t.id)} onDelete={()=>handleDeleteTrip(t.id)}/>)}
               </div>
             )}
           </div>
@@ -528,7 +534,7 @@ function HomeScreen({ data, onSelectTrip, onAddTrip }) {
   );
 }
 
-function TripCard({ trip, onClick }) {
+function TripCard({ trip, onClick, onDelete }) {
   const status = getStatus(trip.startDate, trip.endDate);
   const packing = trip.packing||[];
   const packed  = packing.filter(p=>p.packed).length;
@@ -544,7 +550,12 @@ function TripCard({ trip, onClick }) {
               <p className="serif" style={{ fontSize:22, fontWeight:400, lineHeight:1.2, marginTop:4 }}>{trip.name}</p>
               <p style={{ fontSize:13, color:"#6B5E52", marginTop:4 }}>{fmtDateL(trip.startDate)} – {fmtDateL(trip.endDate)} · {tripDur(trip.startDate,trip.endDate)}</p>
             </div>
-            <span className={`badge badge-${status}`}>{status}</span>
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6 }}>
+              <span className={`badge badge-${status}`}>{status}</span>
+              <Ripple onClick={e=>{e.stopPropagation();onDelete&&onDelete();}} style={{ borderRadius:"50%", width:36, height:36 }}>
+                <button className="icon-btn" style={{ pointerEvents:"none", width:36, height:36, color:"#B3261E" }}><Icon name="trash" size={18}/></button>
+              </Ripple>
+            </div>
           </div>
           {packing.length>0&&(
             <div>
@@ -565,7 +576,7 @@ function TripCard({ trip, onClick }) {
 function TripDetail({ trip, onBack, onUpdate }) {
   const [tab, setTab] = useState("itinerary");
   const tabs = [
-    { key:"itinerary", label:"Days",    icon:"calendar" },
+    { key:"itinerary", label:"Steps",   icon:"calendar" },
     { key:"packing",   label:"Packing", icon:"bag" },
     { key:"budget",    label:"Budget",  icon:"wallet" },
     { key:"notes",     label:"Notes",   icon:"note" },
@@ -691,7 +702,7 @@ function ItineraryTab({ trip, onUpdate }) {
               return (
                 <Ripple key={d.id} onClick={()=>scrollToDay(i)} style={{ borderRadius:12 }}>
                   <div className={`day-pill ${activeDay===i?"active":""}`}>
-                    <span className="day-pill-num">D{i+1}</span>
+                    <span className="day-pill-num">S{i+1}</span>
                     <span className="day-pill-label">{d.label}</span>
                     {allActs.length>0&&<span style={{ fontSize:10, color:activeDay===i?"#E8DDD4":"#9C8A74", marginTop:1 }}>{done}/{allActs.length}</span>}
                   </div>
@@ -702,7 +713,7 @@ function ItineraryTab({ trip, onUpdate }) {
             <Ripple onClick={()=>setShowAddDay(true)} style={{ borderRadius:12 }}>
               <div className="day-pill" style={{ background:"transparent", border:"1px dashed #AEA9AF", minWidth:48 }}>
                 <Icon name="plus" size={18}/>
-                <span style={{ fontSize:11, color:"#6B5E52" }}>Day</span>
+                <span style={{ fontSize:11, color:"#6B5E52" }}>Step</span>
               </div>
             </Ripple>
           </div>
@@ -711,11 +722,11 @@ function ItineraryTab({ trip, onUpdate }) {
 
       {days.length===0 && (
         <div style={{ padding:"60px 20px", textAlign:"center", color:"#6B5E52" }}>
-          <p className="serif" style={{ fontSize:22, fontWeight:300 }}>No days planned yet</p>
-          <p style={{ fontSize:14, marginTop:8 }}>Tap + Day to get started</p>
+          <p className="serif" style={{ fontSize:22, fontWeight:300 }}>No steps planned yet</p>
+          <p style={{ fontSize:14, marginTop:8 }}>Tap + Step to get started</p>
           <div style={{ marginTop:20 }}>
             <Ripple onClick={()=>setShowAddDay(true)} style={{ display:"inline-flex", borderRadius:12 }}>
-              <div className="fab" style={{ position:"relative" }}><Icon name="plus" size={20}/>Add first day</div>
+              <div className="fab" style={{ position:"relative" }}><Icon name="plus" size={20}/>Add first step</div>
             </Ripple>
           </div>
         </div>
@@ -810,7 +821,7 @@ function ItineraryTab({ trip, onUpdate }) {
         <div className="sheet-backdrop" onClick={()=>setShowAddDay(false)}>
           <div className="sheet" onClick={e=>e.stopPropagation()} style={{ padding:"0 0 max(28px,env(safe-area-inset-bottom,28px))" }}>
             <div className="sheet-handle"/>
-            <p className="sheet-title">Add a day</p>
+            <p className="sheet-title">Add a step</p>
             <div style={{ padding:"0 24px", display:"flex", flexDirection:"column", gap:16 }}>
               <div>
                 <label style={{ fontSize:12, color:"#6B5E52", marginBottom:6, display:"block", letterSpacing:".05em", textTransform:"uppercase" }}>Date</label>
@@ -959,49 +970,72 @@ function ActivitySheet({ initial, defaultPart, dayId, onSave, onClose }) {
 
 // ─── PACKING TAB ──────────────────────────────────────────────────────────────
 function PackingTab({ trip, onUpdate }) {
-  const [showAdd, setShowAdd] = useState(false);
-  const [newItem, setNewItem] = useState({item:"",category:"Documents"});
-  const [filter,  setFilter]  = useState("All");
-  const [snack,   setSnack]   = useState(null);
-  const packing = trip.packing||[];
-  const cats = ["All",...PACKING_CATS];
-  const items = filter==="All"?packing:packing.filter(p=>p.category===filter);
-  const packed = packing.filter(p=>p.packed).length;
+  const [showAdd,      setShowAdd]      = useState(false);
+  const [newItem,      setNewItem]      = useState({item:"",category:"Documents"});
+  const [newCatInput,  setNewCatInput]  = useState("");
+  const [filterCats,   setFilterCats]   = useState(new Set());
+  const [showFilter,   setShowFilter]   = useState(false);
+  const [filterTemp,   setFilterTemp]   = useState(new Set());
+  const [snack,        setSnack]        = useState(null);
+
+  const packing  = trip.packing||[];
+  const allCats  = trip.categories||PACKING_CATS;
+  const items    = filterCats.size===0 ? packing : packing.filter(p=>filterCats.has(p.category));
+  const packed   = packing.filter(p=>p.packed).length;
 
   function toggle(id){ onUpdate({...trip,packing:packing.map(p=>p.id===id?{...p,packed:!p.packed}:p)}); }
-  function add(){ if(!newItem.item)return; onUpdate({...trip,packing:[...packing,{id:uid(),...newItem,packed:false}]}); setNewItem({item:"",category:"Documents"}); setShowAdd(false); }
+
+  function add(){
+    if(!newItem.item) return;
+    let cat = newItem.category;
+    let cats = allCats;
+    if(cat==="__new__"){
+      if(!newCatInput.trim()) return;
+      cat = newCatInput.trim();
+      if(!cats.includes(cat)) cats=[...cats,cat];
+    }
+    onUpdate({...trip, categories:cats, packing:[...packing,{id:uid(),item:newItem.item,category:cat,packed:false}]});
+    setNewItem({item:"",category:cats[0]||"Documents"});
+    setNewCatInput(""); setShowAdd(false);
+  }
+
   function remove(id){
     const saved=packing;
     onUpdate({...trip,packing:packing.filter(p=>p.id!==id)});
     setSnack({msg:"Item removed", undo:()=>{onUpdate({...trip,packing:saved});setSnack(null);}});
   }
 
+  const activeFilters = filterCats.size;
+
   return (
     <div style={{ paddingBottom:24 }}>
+      {/* Header row */}
       <div style={{ padding:"16px 20px 8px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <span className="section-label" style={{ padding:0 }}>{packed}/{packing.length} packed</span>
-        <Ripple onClick={()=>setShowAdd(true)} style={{ borderRadius:50 }}>
-          <div style={{ height:40, padding:"0 16px", display:"flex", alignItems:"center", gap:8, background:"#6D5B45", borderRadius:50, color:"#FFF8F4", fontSize:14, fontWeight:500 }}>
-            <Icon name="plus" size={18}/>Add item
-          </div>
-        </Ripple>
+        <div style={{ display:"flex", gap:8 }}>
+          <Ripple onClick={()=>{setFilterTemp(new Set(filterCats));setShowFilter(true);}} style={{ borderRadius:50 }}>
+            <div style={{ height:40, padding:"0 14px", display:"flex", alignItems:"center", gap:6,
+              border:"1.5px solid", borderColor:activeFilters>0?"#6D5B45":"#79747E",
+              background:activeFilters>0?"#D8C7B3":"transparent",
+              borderRadius:50, color:activeFilters>0?"#3C2E1E":"#49454F", fontSize:14, fontWeight:500 }}>
+              <Icon name="filter" size={16}/>
+              {activeFilters>0?`Filter (${activeFilters})`:"Filter"}
+            </div>
+          </Ripple>
+          <Ripple onClick={()=>setShowAdd(true)} style={{ borderRadius:50 }}>
+            <div style={{ height:40, padding:"0 16px", display:"flex", alignItems:"center", gap:8, background:"#6D5B45", borderRadius:50, color:"#FFF8F4", fontSize:14, fontWeight:500 }}>
+              <Icon name="plus" size={18}/>Add item
+            </div>
+          </Ripple>
+        </div>
       </div>
-      <div style={{ padding:"0 20px 12px" }}>
+
+      {/* Progress bar */}
+      <div style={{ padding:"0 20px 16px" }}>
         <div className="progress-track"><div className="progress-fill" style={{ width:`${packing.length>0?(packed/packing.length)*100:0}%`, background:"#6D5B45" }}/></div>
       </div>
 
-      {/* Filter chips */}
-      <div style={{ padding:"0 20px 14px", display:"flex", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
-        {cats.map(c=>(
-          <Ripple key={c} onClick={()=>setFilter(c)} style={{ borderRadius:8 }}>
-            <div className={`chip ${filter===c?"active":""}`}>
-              {filter===c&&<Icon name="check" size={14}/>}
-              {c}
-            </div>
-          </Ripple>
-        ))}
-      </div>
-
+      {/* List */}
       <div style={{ margin:"0 20px" }} className="m3-card">
         {items.map(p=>(
           <Ripple key={p.id} onClick={()=>toggle(p.id)}>
@@ -1011,7 +1045,7 @@ function PackingTab({ trip, onUpdate }) {
                 <p style={{ fontSize:15, textDecoration:p.packed?"line-through":"none", color:p.packed?"#79747E":"#1C1B1F" }}>{p.item}</p>
                 <p style={{ fontSize:12, color:"#79747E", marginTop:2 }}>{p.category}</p>
               </div>
-              <Ripple onClick={e=>{e.stopPropagation?.();remove(p.id);}} style={{ borderRadius:"50%", width:48, height:48, display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <Ripple onClick={e=>{e.stopPropagation();remove(p.id);}} style={{ borderRadius:"50%", width:48, height:48, display:"flex", alignItems:"center", justifyContent:"center" }}>
                 <button className="icon-btn" style={{ pointerEvents:"none" }}><Icon name="trash" size={20}/></button>
               </Ripple>
             </div>
@@ -1020,6 +1054,38 @@ function PackingTab({ trip, onUpdate }) {
         {items.length===0&&<div style={{ padding:"32px 16px", textAlign:"center", color:"#79747E", fontSize:15 }}>Nothing here yet</div>}
       </div>
 
+      {/* ── Filter sheet ── */}
+      {showFilter&&(
+        <div className="sheet-backdrop" onClick={()=>setShowFilter(false)}>
+          <div className="sheet" onClick={e=>e.stopPropagation()}>
+            <div className="sheet-handle"/>
+            <p className="sheet-title">Filter by category</p>
+            <div style={{ overflowY:"auto", maxHeight:"50dvh" }}>
+              {allCats.map(c=>{
+                const sel=filterTemp.has(c);
+                return (
+                  <Ripple key={c} onClick={()=>setFilterTemp(t=>{const n=new Set(t);sel?n.delete(c):n.add(c);return n;})}>
+                    <div className="list-row">
+                      <div className={`m3-check ${sel?"on":""}`}>{sel&&<Icon name="check" size={14}/>}</div>
+                      <span style={{ flex:1, fontSize:15 }}>{c}</span>
+                    </div>
+                  </Ripple>
+                );
+              })}
+            </div>
+            <div style={{ padding:"16px 24px", display:"flex", gap:12 }}>
+              <Ripple onClick={()=>setFilterTemp(new Set())} style={{ flex:1, borderRadius:50 }}>
+                <div style={{ height:48, display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid #CAC4D0", borderRadius:50, color:"#49454F", fontSize:15, fontWeight:500 }}>Clear</div>
+              </Ripple>
+              <Ripple onClick={()=>{setFilterCats(new Set(filterTemp));setShowFilter(false);}} style={{ flex:1, borderRadius:50 }}>
+                <div style={{ height:48, display:"flex", alignItems:"center", justifyContent:"center", background:"#6D5B45", borderRadius:50, color:"#FFF8F4", fontSize:15, fontWeight:500 }}>Apply</div>
+              </Ripple>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add item sheet ── */}
       {showAdd&&(
         <div className="sheet-backdrop" onClick={()=>setShowAdd(false)}>
           <div className="sheet" onClick={e=>e.stopPropagation()} style={{ padding:"0 0 max(28px,env(safe-area-inset-bottom,28px))" }}>
@@ -1033,11 +1099,15 @@ function PackingTab({ trip, onUpdate }) {
               <div>
                 <label style={{ fontSize:12, color:"#6B5E52", marginBottom:6, display:"block", letterSpacing:".05em", textTransform:"uppercase" }}>Category</label>
                 <select className="m3-input" value={newItem.category} onChange={e=>setNewItem({...newItem,category:e.target.value})}>
-                  {PACKING_CATS.map(c=><option key={c}>{c}</option>)}
+                  {allCats.map(c=><option key={c} value={c}>{c}</option>)}
+                  <option value="__new__">＋ New category…</option>
                 </select>
+                {newItem.category==="__new__"&&(
+                  <input className="m3-input" style={{ marginTop:8, borderRadius:12 }} placeholder="Category name" value={newCatInput} onChange={e=>setNewCatInput(e.target.value)}/>
+                )}
               </div>
               <div style={{ display:"flex", gap:12, marginTop:4 }}>
-                <Ripple onClick={()=>setShowAdd(false)} style={{ flex:1, borderRadius:50 }}>
+                <Ripple onClick={()=>{setShowAdd(false);setNewCatInput("");}} style={{ flex:1, borderRadius:50 }}>
                   <div style={{ height:48, display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid #CAC4D0", borderRadius:50, color:"#49454F", fontSize:15, fontWeight:500 }}>Cancel</div>
                 </Ripple>
                 <Ripple onClick={add} style={{ flex:1, borderRadius:50 }}>
@@ -1394,6 +1464,8 @@ export default function App() {
   async function updateData(d){ setData(d); await saveData(d); }
   function updateTrip(u){ updateData({...data,trips:data.trips.map(t=>t.id===u.id?u:t)}); }
   function addTrip(t){ const d={...data,trips:[...data.trips,t]}; updateData(d); setTripId(t.id); setScreen("trip"); }
+  function deleteTrip(id){ updateData({...data,trips:data.trips.filter(t=>t.id!==id)}); }
+  function restoreTrips(trips){ updateData({...data,trips}); }
 
   if(!data) return(<><G/><div className="app-shell" style={{alignItems:"center",justifyContent:"center"}}><p className="serif" style={{fontSize:26,fontWeight:300,color:"#6B5E52"}}>Loading…</p></div></>);
 
@@ -1402,7 +1474,7 @@ export default function App() {
     <>
       <G/>
       <div className="app-shell">
-        {screen==="home" && <HomeScreen data={data} onSelectTrip={id=>{setTripId(id);setScreen("trip");}} onAddTrip={()=>setScreen("new")}/>}
+        {screen==="home" && <HomeScreen data={data} onSelectTrip={id=>{setTripId(id);setScreen("trip");}} onAddTrip={()=>setScreen("new")} onDeleteTrip={deleteTrip} onRestoreTrips={restoreTrips}/>}
         {screen==="trip" && trip && <TripDetail trip={trip} onBack={()=>setScreen("home")} onUpdate={updateTrip}/>}
         {screen==="new"  && <NewTripScreen onSave={addTrip} onBack={()=>setScreen("home")}/>}
       </div>
