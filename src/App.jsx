@@ -78,27 +78,57 @@ const getPri   = k => PRIORITIES.find(p=>p.key===k)||PRIORITIES[2];
 const fmtDur   = m => !m?null:m<60?`${m}m`:`${Math.floor(m/60)}h${m%60?` ${m%60}m`:""}`;
 
 // ─── Android Ripple ───────────────────────────────────────────────────────────
-// Adds Material ripple effect to any wrapper
 function Ripple({ children, onClick, style={}, className="", disabled=false }) {
   const ref = useRef();
-  function handlePress(e) {
-    if (disabled) return;
+  const touchStart = useRef(null);
+
+  function spawnRipple(x, y) {
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const x = (e.touches?.[0]?.clientX ?? e.clientX) - rect.left;
-    const y = (e.touches?.[0]?.clientY ?? e.clientY) - rect.top;
     const size = Math.max(rect.width, rect.height) * 2;
-    const ripple = document.createElement("span");
-    ripple.style.cssText = `position:absolute;border-radius:50%;background:rgba(42,34,24,.12);width:${size}px;height:${size}px;left:${x-size/2}px;top:${y-size/2}px;transform:scale(0);animation:rippleAnim .5s ease-out forwards;pointer-events:none;`;
-    el.appendChild(ripple);
-    setTimeout(()=>ripple.remove(), 600);
+    const r = document.createElement("span");
+    r.style.cssText = `position:absolute;border-radius:50%;background:rgba(42,34,24,.12);width:${size}px;height:${size}px;left:${x-size/2}px;top:${y-size/2}px;transform:scale(0);animation:rippleAnim .5s ease-out forwards;pointer-events:none;`;
+    el.appendChild(r);
+    setTimeout(()=>r.remove(), 600);
+  }
+
+  function handleTouchStart(e) {
+    if (disabled) return;
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  }
+
+  function handleTouchEnd(e) {
+    if (disabled || !touchStart.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.current.x;
+    const dy = t.clientY - touchStart.current.y;
+    touchStart.current = null;
+    if (Math.sqrt(dx*dx + dy*dy) < 10) {
+      const el = ref.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      spawnRipple(t.clientX - rect.left, t.clientY - rect.top);
+      if (onClick) onClick(e);
+    }
+  }
+
+  function handleClick(e) {
+    if (disabled || ("ontouchstart" in window)) return;
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    spawnRipple(e.clientX - rect.left, e.clientY - rect.top);
     if (onClick) onClick(e);
   }
+
   return (
     <div ref={ref} className={className}
       style={{ position:"relative", overflow:"hidden", cursor:disabled?"default":"pointer", WebkitTapHighlightColor:"transparent", ...style }}
-      onTouchStart={handlePress} onClick={!("ontouchstart" in window) ? handlePress : undefined}>
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onClick={handleClick}>
       {children}
     </div>
   );
@@ -256,7 +286,7 @@ const G = () => (
       border-top: 1px solid #E6DFDA;
     }
     .nav-item {
-      flex: 1; display: flex; flex-direction: column;
+      width: 100%; display: flex; flex-direction: column;
       align-items: center; padding: 12px 0 14px;
       border: none; background: none; cursor: pointer;
       color: #49454F; font-family: inherit; font-size: 12px;
@@ -268,11 +298,12 @@ const G = () => (
     /* Pill indicator behind icon */
     .nav-pill {
       position: absolute; top: 8px;
+      left: 50%; transform: translateX(-50%);
       width: 64px; height: 32px; border-radius: 16px;
       background: #D8C7B3;
       transition: opacity .2s, transform .2s;
     }
-    .nav-item:not(.active) .nav-pill { opacity: 0; transform: scaleX(.6); }
+    .nav-item:not(.active) .nav-pill { opacity: 0; transform: translateX(-50%) scaleX(.6); }
 
     /* ── Extended FAB (Material 3) ── */
     .fab {
@@ -329,8 +360,8 @@ const G = () => (
     .chip {
       display: inline-flex; align-items: center; gap: 6px;
       height: 32px; padding: 0 14px;
-      border: 1px solid #CAC4D0; border-radius: 8px;
-      background: transparent; color: #49454F;
+      border: 1.5px solid #79747E; border-radius: 8px;
+      background: transparent; color: #1C1B1F;
       font-family: inherit; font-size: 14px; font-weight: 500;
       cursor: pointer; white-space: nowrap;
       transition: background .15s, border-color .15s, color .15s;
