@@ -77,57 +77,29 @@ const getPart  = k => PARTS.find(p=>p.key===k)||PARTS[0];
 const getPri   = k => PRIORITIES.find(p=>p.key===k)||PRIORITIES[2];
 const fmtDur   = m => !m?null:m<60?`${m}m`:`${Math.floor(m/60)}h${m%60?` ${m%60}m`:""}`;
 
-// ─── Android Ripple ───────────────────────────────────────────────────────────
+// ─── Ripple ───────────────────────────────────────────────────────────────────
 function Ripple({ children, onClick, style={}, className="", disabled=false }) {
   const ref = useRef();
-  const touchStart = useRef(null);
 
-  function spawnRipple(x, y) {
+  function handleClick(e) {
+    if (disabled) return;
     const el = ref.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     const size = Math.max(rect.width, rect.height) * 2;
     const r = document.createElement("span");
     r.style.cssText = `position:absolute;border-radius:50%;background:rgba(42,34,24,.12);width:${size}px;height:${size}px;left:${x-size/2}px;top:${y-size/2}px;transform:scale(0);animation:rippleAnim .5s ease-out forwards;pointer-events:none;`;
     el.appendChild(r);
     setTimeout(()=>r.remove(), 600);
-  }
-
-  function handleTouchStart(e) {
-    if (disabled) return;
-    const t = e.touches[0];
-    touchStart.current = { x: t.clientX, y: t.clientY };
-  }
-
-  function handleTouchEnd(e) {
-    if (disabled || !touchStart.current) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - touchStart.current.x;
-    const dy = t.clientY - touchStart.current.y;
-    touchStart.current = null;
-    if (Math.sqrt(dx*dx + dy*dy) < 10) {
-      const el = ref.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      spawnRipple(t.clientX - rect.left, t.clientY - rect.top);
-      if (onClick) onClick(e);
-    }
-  }
-
-  function handleClick(e) {
-    if (disabled || ("ontouchstart" in window)) return;
-    const el = ref.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    spawnRipple(e.clientX - rect.left, e.clientY - rect.top);
     if (onClick) onClick(e);
   }
 
   return (
     <div ref={ref} className={className}
-      style={{ position:"relative", overflow:"hidden", cursor:disabled?"default":"pointer", WebkitTapHighlightColor:"transparent", ...style }}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
+      style={{ position:"relative", overflow:"hidden", cursor:disabled?"default":"pointer",
+               WebkitTapHighlightColor:"transparent", touchAction:"manipulation", ...style }}
       onClick={handleClick}>
       {children}
     </div>
