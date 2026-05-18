@@ -406,9 +406,9 @@ const G = () => (
     /* ── Home hero ── */
     .hero {
       background: linear-gradient(160deg, #3C2E1E 0%, #6D5B45 100%);
-      padding: 20px 20px 28px; color: #FFF8F4;
+      padding: 14px 20px 16px; color: #FFF8F4;
     }
-    .hero-title { font-family:'Cormorant Garamond',serif; font-size:42px; font-weight:300; line-height:1.05; margin-top:8px; }
+    .hero-title { font-family:'Cormorant Garamond',serif; font-size:28px; font-weight:300; line-height:1.2; }
 
     /* ── Past trips accordion ── */
     .accordion-toggle {
@@ -449,15 +449,16 @@ function HomeScreen({ data, onSelectTrip, onAddTrip, onDeleteTrip, onRestoreTrip
       <div className="screen-scroll fade-up">
         {/* Hero */}
         <div className="hero">
-          <p style={{ fontSize:12, letterSpacing:".12em", textTransform:"uppercase", color:"#C4B49A" }}>Your journeys</p>
-          <h1 className="hero-title">Travel<br/>Companion</h1>
-          <div style={{ display:"flex", gap:32, marginTop:20 }}>
-            {[["Trips", data.trips.length],["Upcoming", upcoming.length]].map(([l,v])=>(
-              <div key={l}>
-                <p style={{ fontSize:28, fontWeight:300 }}>{v}</p>
-                <p style={{ fontSize:11, letterSpacing:".1em", textTransform:"uppercase", color:"#C4B49A" }}>{l}</p>
-              </div>
-            ))}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <h1 className="hero-title">Travel Companion</h1>
+            <div style={{ display:"flex", gap:20 }}>
+              {[["Trips", data.trips.length],["Upcoming", upcoming.length]].map(([l,v])=>(
+                <div key={l} style={{ textAlign:"center" }}>
+                  <p style={{ fontSize:20, fontWeight:300, lineHeight:1 }}>{v}</p>
+                  <p style={{ fontSize:10, letterSpacing:".1em", textTransform:"uppercase", color:"#C4B49A", marginTop:3 }}>{l}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -625,13 +626,14 @@ function TripDetail({ trip, onBack, onUpdate }) {
 const BLANK_ACT = { title:"", priority:"should", duration:60, location:"" };
 
 function ItineraryTab({ trip, onUpdate }) {
-  const [activeDay,   setActiveDay]   = useState(0);
-  const [showAddDay,  setShowAddDay]  = useState(false);
-  const [editAct,     setEditAct]     = useState(null);
-  const [actionSheet, setActionSheet] = useState(null);
-  const [moveModal,   setMoveModal]   = useState(null);
-  const [snack,       setSnack]       = useState(null);
-  const [newDay,      setNewDay]      = useState({date:"",label:"",parts:["morning"]});
+  const [activeDay,    setActiveDay]    = useState(0);
+  const [showAddDay,   setShowAddDay]   = useState(false);
+  const [editAct,      setEditAct]      = useState(null);
+  const [actionSheet,  setActionSheet]  = useState(null);
+  const [confirmDelete,setConfirmDelete]= useState(null);
+  const [moveModal,    setMoveModal]    = useState(null);
+  const [snack,        setSnack]        = useState(null);
+  const [newDay,       setNewDay]       = useState({date:"",label:"",parts:["morning"]});
   const dayRefs = useRef({});
 
   const days = trip.days||[];
@@ -809,9 +811,28 @@ function ItineraryTab({ trip, onUpdate }) {
             <button className="action-item" onClick={()=>{const a=actionSheet;setActionSheet(null);setMoveModal({activity:a.activity,fromDayId:a.dayId,fromPart:a.part});}}>
               <Icon name="move" size={22}/>Move to another slot
             </button>
-            <button className="action-item danger" onClick={()=>{const a=actionSheet;setActionSheet(null);deleteAct(a.dayId,a.part,a.activity.id);}}>
+            <button className="action-item danger" onClick={()=>{const a=actionSheet;setActionSheet(null);setConfirmDelete(a);}}>
               <Icon name="trash" size={22}/>Delete
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm delete sheet ── */}
+      {confirmDelete&&(
+        <div className="sheet-backdrop" onClick={()=>setConfirmDelete(null)}>
+          <div className="sheet" onClick={e=>e.stopPropagation()} style={{ padding:"0 0 max(28px,env(safe-area-inset-bottom,28px))" }}>
+            <div className="sheet-handle"/>
+            <p className="sheet-title">Delete activity?</p>
+            <p style={{ padding:"0 24px 20px", fontSize:14, color:"#6B5E52" }}>"{confirmDelete.activity.title}" will be permanently removed.</p>
+            <div style={{ padding:"0 24px", display:"flex", gap:12 }}>
+              <Ripple onClick={()=>setConfirmDelete(null)} style={{ flex:1, borderRadius:50 }}>
+                <div style={{ height:48, display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid #CAC4D0", borderRadius:50, color:"#49454F", fontSize:15, fontWeight:500 }}>Cancel</div>
+              </Ripple>
+              <Ripple onClick={()=>{const a=confirmDelete;setConfirmDelete(null);deleteAct(a.dayId,a.part,a.activity.id);}} style={{ flex:1, borderRadius:50 }}>
+                <div style={{ height:48, display:"flex", alignItems:"center", justifyContent:"center", background:"#B3261E", borderRadius:50, color:"#FFF8F4", fontSize:15, fontWeight:500 }}>Delete</div>
+              </Ripple>
+            </div>
           </div>
         </div>
       )}
@@ -1370,13 +1391,13 @@ function NotesTab({ trip, onUpdate }) {
 
 // ─── NEW TRIP SCREEN ──────────────────────────────────────────────────────────
 function NewTripScreen({ onSave, onBack }) {
-  const [form, setForm] = useState({name:"",destination:"",emoji:"✈️",startDate:"",endDate:"",coverColor:"#6D5B45",currency:"EUR",budget:0});
+  const [form, setForm] = useState({name:"",destination:"",emoji:"✈️",startDate:"",endDate:"",coverColor:"#6D5B45"});
   const emojiOpts=["✈️","🏖️","🏔️","🌍","🏙️","🚂","⛵","🏕️","🎡","🍜"];
   const colorOpts=["#6D5B45","#2E6B3E","#2D5F8A","#7D3030","#5B3B8A","#7A6030","#1C1B1F"];
 
   function submit(){
     if(!form.name||!form.startDate||!form.endDate)return;
-    onSave({id:uid(),...form,budget:{total:parseFloat(form.budget)||0,currency:form.currency},days:[],packing:[],notes:[],expenses:[]});
+    onSave({id:uid(),...form,budget:{total:0,currency:"EUR"},days:[],packing:[],notes:[],expenses:[]});
   }
 
   return (
@@ -1388,7 +1409,7 @@ function NewTripScreen({ onSave, onBack }) {
         <span className="top-bar-title">New trip</span>
       </div>
 
-      <div style={{ flex:1, overflowY:"auto", padding:"20px 20px 48px", display:"flex", flexDirection:"column", gap:20 }}>
+      <div style={{ flex:1, overflowY:"auto", padding:"20px 20px 16px", display:"flex", flexDirection:"column", gap:20 }}>
         <div>
           <label style={{ fontSize:12, color:"#6B5E52", marginBottom:10, display:"block", letterSpacing:".05em", textTransform:"uppercase" }}>Trip icon</label>
           <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
@@ -1430,19 +1451,10 @@ function NewTripScreen({ onSave, onBack }) {
             ))}
           </div>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 2fr", gap:12 }}>
-          <div>
-            <label style={{ fontSize:12, color:"#6B5E52", marginBottom:6, display:"block", letterSpacing:".05em", textTransform:"uppercase" }}>Currency</label>
-            <select className="m3-input" value={form.currency} onChange={e=>setForm({...form,currency:e.target.value})}>
-              {["EUR","USD","GBP","CHF","JPY","AUD"].map(c=><option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize:12, color:"#6B5E52", marginBottom:6, display:"block", letterSpacing:".05em", textTransform:"uppercase" }}>Total budget</label>
-            <input type="number" className="m3-input" inputMode="decimal" placeholder="0" value={form.budget} onChange={e=>setForm({...form,budget:e.target.value})}/>
-          </div>
-        </div>
+      </div>
 
+      {/* Always-visible submit button */}
+      <div style={{ padding:"12px 20px", paddingBottom:"max(20px, env(safe-area-inset-bottom, 20px))", borderTop:"1px solid #E6DFDA", background:"#FFFBF7", flexShrink:0 }}>
         <Ripple onClick={submit} style={{ borderRadius:50 }}>
           <div style={{ height:56, display:"flex", alignItems:"center", justifyContent:"center", gap:10, background:"#6D5B45", borderRadius:50, color:"#FFF8F4", fontSize:16, fontWeight:500 }}>
             <Icon name="plane" size={20}/>Create trip
