@@ -623,7 +623,7 @@ function TripDetail({ trip, onBack, onUpdate }) {
 }
 
 // ─── ITINERARY TAB ────────────────────────────────────────────────────────────
-const BLANK_ACT = { title:"", priority:"should", duration:60, location:"" };
+const BLANK_ACT = { title:"", priority:"should", duration:60, location:"", locationUrl:"" };
 
 function ItineraryTab({ trip, onUpdate }) {
   const [activeDay,      setActiveDay]      = useState(0);
@@ -781,7 +781,7 @@ function ItineraryTab({ trip, onUpdate }) {
                             <div style={{ marginTop:5, display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                               <span className="pri-chip" style={{ background:pri.bg, color:pri.color, fontSize:11 }}>{pri.label}</span>
                               {act.duration>0&&<span style={{ fontSize:12, color:"#6B5E52", display:"flex", alignItems:"center", gap:3 }}><Icon name="clock" size={13}/>{fmtDur(act.duration)}</span>}
-                              {act.location&&<a href={`https://maps.google.com/?q=${encodeURIComponent(act.location)}`} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{ fontSize:12, color:"#6D5B45", display:"flex", alignItems:"center", gap:3, textDecoration:"none" }}><Icon name="pin" size={13}/><span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:140 }}>{act.location}</span></a>}
+                              {act.location&&<a href={act.locationUrl||`https://maps.google.com/?q=${encodeURIComponent(act.location)}`} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()} style={{ fontSize:12, color:"#6D5B45", display:"flex", alignItems:"center", gap:3, textDecoration:"none" }}><Icon name="pin" size={13}/><span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:140 }}>{act.location}</span></a>}
                             </div>
                           </div>
                           {/* Single ⋯ — 48×48 tap zone */}
@@ -956,7 +956,35 @@ function ItineraryTab({ trip, onUpdate }) {
 // ─── ACTIVITY SHEET ───────────────────────────────────────────────────────────
 function ActivitySheet({ initial, defaultPart, dayId, onSave, onClose }) {
   const [form, setForm] = useState({ ...BLANK_ACT, part:defaultPart, ...initial });
+  const [suggestions, setSuggestions] = useState([]);
+  const [searching,   setSearching]   = useState(false);
+  const searchTimer = useRef(null);
   const isEdit = !!initial?.id;
+
+  function handleLocationInput(val) {
+    setForm(f=>({...f, location:val, locationUrl:""}));
+    clearTimeout(searchTimer.current);
+    if (val.length < 3) { setSuggestions([]); return; }
+    searchTimer.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val)}&format=json&limit=5&addressdetails=1`,
+          { headers:{ "Accept-Language":"en" } }
+        );
+        setSuggestions(await res.json());
+      } catch { setSuggestions([]); }
+      setSearching(false);
+    }, 450);
+  }
+
+  function pickPlace(p) {
+    const parts = p.display_name.split(",");
+    const name  = parts.slice(0, 2).join(",").trim();
+    setForm(f=>({...f, location:name, locationUrl:`https://maps.google.com/?q=${p.lat},${p.lon}`}));
+    setSuggestions([]);
+  }
+
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{ padding:"0 0 max(28px,env(safe-area-inset-bottom,28px))" }}>
@@ -991,16 +1019,42 @@ function ActivitySheet({ initial, defaultPart, dayId, onSave, onClose }) {
               </select>
             </div>
           </div>
+
+          {/* Location with place search */}
           <div>
-            <label style={{ fontSize:12, color:"#6B5E52", marginBottom:6, display:"block", letterSpacing:".05em", textTransform:"uppercase" }}>Location</label>
-            <input className="m3-input" placeholder="Place name or address" value={form.location||""} onChange={e=>setForm({...form,location:e.target.value})}/>
-            {form.location&&(
-              <a href={`https://maps.google.com/?q=${encodeURIComponent(form.location)}`} target="_blank" rel="noreferrer"
+            <label style={{ fontSize:12, color:"#6B5E52", marginBottom:6, display:"block", letterSpacing:".05em", textTransform:"uppercase" }}>
+              Location{searching&&<span style={{ marginLeft:8, color:"#AEA9AF", fontWeight:400, textTransform:"none", letterSpacing:0 }}>Searching…</span>}
+            </label>
+            <div style={{ position:"relative" }}>
+              <input className="m3-input" placeholder="Search for a place…" value={form.location||""}
+                onChange={e=>handleLocationInput(e.target.value)}
+                onBlur={()=>setTimeout(()=>setSuggestions([]), 200)}/>
+              {suggestions.length>0&&(
+                <div style={{ position:"absolute", top:"calc(100% + 4px)", left:0, right:0, background:"#FFFBF7",
+                  border:"1px solid #CAC4D0", borderRadius:12, zIndex:300, overflow:"hidden",
+                  boxShadow:"0 4px 20px rgba(0,0,0,.15)" }}>
+                  {suggestions.map((p,i)=>(
+                    <Ripple key={i} onClick={()=>pickPlace(p)}>
+                      <div style={{ padding:"12px 16px", borderBottom:i<suggestions.length-1?"1px solid #EDE8E4":"none", display:"flex", alignItems:"center", gap:12 }}>
+                        <span style={{ color:"#6D5B45", flexShrink:0 }}><Icon name="pin" size={16}/></span>
+                        <div style={{ minWidth:0 }}>
+                          <p style={{ fontSize:14, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.display_name.split(",")[0]}</p>
+                          <p style={{ fontSize:12, color:"#6B5E52", marginTop:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.display_name.split(",").slice(1,3).join(",").trim()}</p>
+                        </div>
+                      </div>
+                    </Ripple>
+                  ))}
+                </div>
+              )}
+            </div>
+            {form.locationUrl&&(
+              <a href={form.locationUrl} target="_blank" rel="noreferrer"
                 style={{ fontSize:13, color:"#6D5B45", display:"inline-flex", alignItems:"center", gap:4, marginTop:8, textDecoration:"none", minHeight:40, padding:"4px 0" }}>
-                <Icon name="pin" size={14}/> Open in Google Maps ↗
+                <Icon name="pin" size={14}/>View pin in Google Maps ↗
               </a>
             )}
           </div>
+
           <div style={{ display:"flex", gap:12, marginTop:4 }}>
             <Ripple onClick={onClose} style={{ flex:1, borderRadius:50 }}>
               <div style={{ height:48, display:"flex", alignItems:"center", justifyContent:"center", border:"1px solid #CAC4D0", borderRadius:50, color:"#49454F", fontSize:15, fontWeight:500 }}>Cancel</div>
